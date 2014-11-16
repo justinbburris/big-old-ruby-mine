@@ -1,16 +1,23 @@
+# see through fog of war
 # change players
 # attack players
 # Replace screen instead of drawing more
-# fog of war
 # client/sever
 # active turn battle
 # cool intro
+
+module MineObject
+  def mineable?
+    false
+  end
+end
 
 class Game
   STATE_PLAYING = 'playing'
   STATE_DEATH = 'death'
   STATE_WIN = 'win'
   WIN_SCORE = 100
+  FOG_OF_WAR = true
 
   def initialize
     @mine = Mine.new
@@ -18,13 +25,15 @@ class Game
     @rubies = RubyManager.new({seeded_positions: @players.position_keys,
                                num_normal_rubies: 25,
                                num_big_ole_rubies: 1})
+    @dirt = DirtManager.new
+    @dirt.fill_mine(@mine)
     @mine.place_objects(@players)
     @mine.place_objects(@rubies)
     @current_player = @players[0]
     @game_state = STATE_PLAYING
 
     while(@game_state == STATE_PLAYING)
-      puts @mine.prospect
+      puts @mine.prospect(@current_player)
       ask_and_move
 
       if(@current_player.health <= 0)
@@ -50,8 +59,9 @@ class Game
   private
 
   def ask_and_move
-    puts "Current Health: #{@current_player.health}"
-    puts "Current Score: #{@current_player.score} of #{WIN_SCORE}"
+    puts "Player: player #{@current_player.id}"
+    puts "Health: #{@current_player.health}"
+    puts "Score: #{@current_player.score} of #{WIN_SCORE}"
     puts "Your move:"
     puts "You may move: #{@players.available_moves(@current_player).join(', ')}"
     puts "You may face: #{@current_player.available_facings.join(', ')}"
@@ -103,7 +113,7 @@ end
 
 class Mine
   MINE_SIZE = 12
-  MINEABLE = 'XX'
+
   RUBY = '<>'
   BIG_OLE_RUBY = '{}'
   TUNNEL = '  '
@@ -114,13 +124,17 @@ class Mine
 
   def initialize
     @mine = Array.new(MINE_SIZE)
-    @mine = @mine.map { |level| level = Array.new(MINE_SIZE, MINEABLE) }
-    @mine[0][1] = TUNNEL
-    @mine[1][1] = TUNNEL
+    @mine = @mine.map { |level| level = Array.new(MINE_SIZE, '') }
+  end
+
+  def each_with_index
+    @mine.each_with_index do |row, index|
+      yield row, index
+    end
   end
 
   def mineable?(position)
-    if(item_at_position(*position) == MINEABLE)
+    if(item_at_position(*position).mineable?)
       true
     else
       false
@@ -134,7 +148,7 @@ class Mine
   end
 
   def place_object(object)
-    set_space(object.icon, *object.position)
+    set_space(object, *object.position)
   end
 
   def remove_player(player)
@@ -151,10 +165,16 @@ class Mine
     @mine[y][x]
   end
 
-  def prospect
+  def prospect(player)
     mine_map = [horizontal_edge]
-    mine_map << @mine.map do |level|
-      level.reduce('>') { |x, contents| x << " #{contents}" }
+    mine_map << @mine.map do |row|
+      row.reduce(':') do |column, object|
+        if(Game::FOG_OF_WAR && object != player)
+          column << " \u2588\u2588"
+        else
+          column << " #{object.icon}"
+        end
+      end
     end
     mine_map << [horizontal_edge]
   end
@@ -171,6 +191,8 @@ class Mine
 end
 
 class Player
+  include ::MineObject
+
   UP = 'up'
   DOWN = 'down'
   LEFT = 'left'
@@ -323,7 +345,44 @@ class Player
   end
 end
 
+class Dirt
+  include ::MineObject
+
+  ICON_NORMAL = "XX"
+
+  attr_reader :position
+
+  def initialize(position)
+    @position = position
+  end
+
+  def icon
+    ICON_NORMAL
+  end
+end
+
+class DirtManager
+  def initialize
+    @dirt = []
+  end
+
+  def fill_mine(mine)
+    mine.each_with_index do |row, rindex|
+      # binding.pry
+      row.each_with_index do |space, cindex|
+        if(space).empty?
+          dirt = Dirt.new([rindex, cindex])
+          @dirt << dirt
+          mine.place_object(dirt)
+        end
+      end
+    end
+  end
+end
+
 class TheElusiveRuby
+  include ::MineObject
+
   ICON_NORMAL = "\u25BD "
   ICON_BIG_OLE = "\u25BC "
 
@@ -405,6 +464,10 @@ class PlayerManager
     @players.each { |player| yield player }
   end
 
+  def position_keys
+    @players.map { |player| Game.position_key(player.position) }
+  end
+
   private
 
   def player_positions
@@ -443,10 +506,6 @@ class RubyManager
   #
   def each
     @rubies.each { |ruby| yield ruby }
-  end
-
-  def position_keys
-    @players.map { |player| Game.position_key(player.position) }
   end
 
   def ruby_at_position(position)
