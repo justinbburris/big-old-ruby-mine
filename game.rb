@@ -288,10 +288,7 @@ class Player
     elsif(tunnel_x == x && tunnel_y > y) #down
       (y+1...tunnel_y).each do |rpos|
         if mine[rpos][x].class != Tunnel
-          puts "player-#{y} : NOT A TUNNEL-#{rpos}"
           tunnels_all_the_way_down = false
-        else
-          puts "player-#{y} : tunnel-#{rpos}"
         end
       end
       tunnels_all_the_way_down
