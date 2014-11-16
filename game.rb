@@ -37,7 +37,9 @@ class Game
     puts "|                 T   O                     |"
     puts "|               B   I   G                   |"
     puts "|               O   L   E                   |"
+    puts "|                 \u25BD \u25BD \u25BD                     |"
     puts "|             R   U   B   Y                 |"
+    puts "|                 \u25BD \u25BD \u25BD                     |"
     puts "|             M   I   N   E                 |"
     puts "============================================="
 
