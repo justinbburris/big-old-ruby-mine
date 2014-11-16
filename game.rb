@@ -1,4 +1,3 @@
-# player position
 # change players
 # attack players
 # Replace screen instead of drawing more
@@ -52,6 +51,7 @@ class Game
 
   def ask_and_move
     puts "Current Health: #{@current_player.health}"
+    puts "Current Score: #{@current_player.score} of #{WIN_SCORE}"
     puts "Your move:"
     puts "You may move: #{@players.available_moves(@current_player).join(', ')}"
     puts "You may face: #{@current_player.available_facings.join(', ')}"
@@ -328,7 +328,7 @@ class TheElusiveRuby
   ICON_BIG_OLE = "\u25BC "
 
   VALUE_NORMAL = 10
-  VALUE_BIG_OLE = 100
+  VALUE_BIG_OLE = 50
 
   KIND_NORMAL = 'normal'
   KIND_BIG_OLE = 'big ole ruby'
