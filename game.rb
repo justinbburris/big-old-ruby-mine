@@ -7,6 +7,8 @@
 # cool intro
 
 module MineObject
+  attr_reader :position
+
   def mineable?
     false
   end
@@ -31,10 +33,11 @@ class Game
     @mine.place_objects(@rubies)
     @current_player = @players[0]
     @game_state = STATE_PLAYING
+    puts @mine.prospect(@current_player)
 
     while(@game_state == STATE_PLAYING)
-      puts @mine.prospect(@current_player)
       ask_and_move
+      puts @mine.prospect(@current_player)
 
       if(@current_player.health <= 0)
         @game_state = STATE_DEATH
@@ -72,7 +75,7 @@ class Game
     elsif valid_move?(action)
       make_move(action)
       if @current_player.left_home
-        @mine.set_space(@current_player.homebase_icon, *@current_player.homebase)
+        @mine.place_object(@current_player.homebase)
         @current_player.left_home = false
       end
     end
@@ -111,12 +114,25 @@ class Game
   end
 end
 
+class Tunnel
+  ICON = "\u2591\u2591"
+  include ::MineObject
+
+  def initialize(position)
+    @position = position
+  end
+
+  def icon
+    ICON
+  end
+
+end
+
 class Mine
   MINE_SIZE = 12
 
   RUBY = '<>'
   BIG_OLE_RUBY = '{}'
-  TUNNEL = '  '
   HORIZONTAL = '-'
   VERTICAL = '|'
 
@@ -152,13 +168,12 @@ class Mine
   end
 
   def remove_player(player)
-    set_space(TUNNEL, *player.position)
+    tunnel = Tunnel.new(player.position.clone)
+    place_object(tunnel)
   end
 
   def set_space(item, x, y)
     @mine[x][y] = item
-  rescue
-    binding.pry
   end
 
   def item_at_position(y, x)
@@ -169,7 +184,7 @@ class Mine
     mine_map = [horizontal_edge]
     mine_map << @mine.map do |row|
       row.reduce(':') do |column, object|
-        if(Game::FOG_OF_WAR && object != player)
+        if(Game::FOG_OF_WAR && object != player && ! player.position_visible?(@mine, object.position))
           column << " \u2588\u2588"
         else
           column << " #{object.icon}"
@@ -190,6 +205,20 @@ class Mine
   end
 end
 
+class Homebase
+  include ::MineObject
+
+  def initialize(player_id, position)
+    @id = player_id
+    @position = position
+  end
+
+  def icon
+    "@#{@id}"
+  end
+
+end
+
 class Player
   include ::MineObject
 
@@ -199,22 +228,61 @@ class Player
   RIGHT = 'right'
   DIRECTIONS = [UP, DOWN, LEFT, RIGHT]
 
-  attr_reader :position, :id, :health, :score, :homebase
+  attr_reader :id, :health, :score, :homebase
   attr_accessor :tunneler, :left_home
 
   def initialize(player_id, position)
     @tunneler = RIGHT
     @id = "#{player_id}"
     @position = position
-    @homebase = position.clone
+    @homebase = Homebase.new(@id, position.clone)
     @left_home = false
     @health = 50
     @cart = []
     @score = 0
   end
 
+  def position_visible?(mine, position)
+    if position == @homebase.position || visible_tunnel?(mine, position)
+      true
+    else
+      false
+    end
+  end
+
+  def visible_tunnel?(mine, position)
+    tunnel_y = position[0]
+    tunnel_x = position[1]
+    y = @position[0]
+    x = @position[1]
+
+    if(tunnel_x == x && tunnel_y < y) #up
+      (y-1).downto(0).each do |rpos|
+        mine[rpos][x].class == Tunnel
+      end
+      true
+    elsif(tunnel_x == x && tunnel_y > y) #down
+      (y...tunnel_y).each do |rpos|
+        mine[rpos][x].class == Tunnel
+      end
+      true
+    elsif(tunnel_y == y && tunnel_x < x) #left
+      (x-1).downto(0).each do |cpos|
+        mine[y][cpos].class == Tunnel
+      end
+      true
+    elsif(tunnel_y == y && tunnel_x > x) #right
+      # (x...tunnel_x).each do |cpos|
+      #   mine[y][cpos].class == Tunnel
+      # end
+      true
+    else
+      false
+    end
+  end
+
   def home?(position)
-    @homebase == position
+    @homebase.position == position
   end
 
   def load_up(ruby)
@@ -236,7 +304,7 @@ class Player
   end
 
   def move(direction)
-    @left_home = @position == @homebase
+    @left_home = @position == @homebase.position
     case(direction)
     when UP
       move_up
@@ -350,8 +418,6 @@ class Dirt
 
   ICON_NORMAL = "XX"
 
-  attr_reader :position
-
   def initialize(position)
     @position = position
   end
@@ -393,7 +459,7 @@ class TheElusiveRuby
   KIND_BIG_OLE = 'big ole ruby'
   KINDS = %w{KIND_NORMAL, KIND_BIG_OLE}
 
-  attr_reader :position, :value
+  attr_reader :value
 
   def initialize(kind, position)
     @kind = kind
