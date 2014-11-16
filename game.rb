@@ -4,7 +4,6 @@
 # Replace screen instead of drawing more
 # client/sever
 # active turn battle
-# cool intro
 
 module MineObject
   attr_reader :position
@@ -33,6 +32,15 @@ class Game
     @mine.place_objects(@rubies)
     @current_player = @players.next_player
     @game_state = STATE_PLAYING
+    puts "============================================="
+    puts "|       W   E   L   C   O   M   E           |"
+    puts "|                 T   O                     |"
+    puts "|               B   I   G                   |"
+    puts "|               O   L   E                   |"
+    puts "|             R   U   B   Y                 |"
+    puts "|             M   I   N   E                 |"
+    puts "============================================="
+
     puts @mine.prospect(@current_player)
 
     while(@game_state == STATE_PLAYING)
