@@ -1,5 +1,5 @@
-# see through fog of war
-# change players
+# f + typo = no direction
+# directional typos should be handled
 # attack players
 # Replace screen instead of drawing more
 # client/sever
@@ -18,7 +18,7 @@ class Game
   STATE_PLAYING = 'playing'
   STATE_DEATH = 'death'
   STATE_WIN = 'win'
-  WIN_SCORE = 100
+  WIN_SCORE = 70
   FOG_OF_WAR = true
 
   def initialize
@@ -31,14 +31,12 @@ class Game
     @dirt.fill_mine(@mine)
     @mine.place_objects(@players)
     @mine.place_objects(@rubies)
-    @current_player = @players[0]
+    @current_player = @players.next_player
     @game_state = STATE_PLAYING
     puts @mine.prospect(@current_player)
 
     while(@game_state == STATE_PLAYING)
       ask_and_move
-      puts @mine.prospect(@current_player)
-
       if(@current_player.health <= 0)
         @game_state = STATE_DEATH
       end
@@ -46,13 +44,20 @@ class Game
       if(@current_player.score >= WIN_SCORE)
          @game_state = STATE_WIN
       end
+
+      if(@game_state == STATE_PLAYING)
+        @current_player = @players.next_player
+        puts @mine.prospect(@current_player)
+      end
     end
 
     if(@game_state == STATE_DEATH)
-      puts "Game over man, game over."
+      puts "Player #{@current_player.display_id} loses. Game over man, game over."
     elsif(@game_state == STATE_WIN)
-      puts "You did it! You really did it! You've sucessfully prospected the crap out of the Big Ole Ruby Mine"
+      puts "Player #{@current_player.display_id} did it! They really did it! They've sucessfully prospected the crap out of the Big Ole Ruby Mine"
     end
+
+    puts ''
   end
 
   def self.position_key(pos)
@@ -62,7 +67,7 @@ class Game
   private
 
   def ask_and_move
-    puts "Player: player #{@current_player.id}"
+    puts "Player: player #{@current_player.display_id}"
     puts "Health: #{@current_player.health}"
     puts "Score: #{@current_player.score} of #{WIN_SCORE}"
     puts "Your move:"
@@ -233,7 +238,7 @@ class Player
 
   def initialize(player_id, position)
     @tunneler = RIGHT
-    @id = "#{player_id}"
+    @id = player_id
     @position = position
     @homebase = Homebase.new(@id, position.clone)
     @left_home = false
@@ -250,6 +255,10 @@ class Player
     else
       false
     end
+  end
+
+  def display_id
+    "#{id + 1}"
   end
 
   def directly_ahead?(position)
@@ -464,7 +473,6 @@ class DirtManager
 
   def fill_mine(mine)
     mine.each_with_index do |row, rindex|
-      # binding.pry
       row.each_with_index do |space, cindex|
         if(space).empty?
           dirt = Dirt.new([rindex, cindex])
@@ -538,6 +546,7 @@ class PlayerManager
   include ::Positional
 
   def initialize(num_players)
+    @current_player = num_players - 1
     @players = []
     num_players.times do |id|
       position = [id, 0]
@@ -554,6 +563,16 @@ class PlayerManager
 
   def [](index)
     @players[index]
+  end
+
+  def next_player
+    if @current_player == @players.length - 1
+      @current_player = 0
+    else
+      @current_player = @current_player + 1
+    end
+
+    @players[@current_player]
   end
 
   def each
@@ -614,3 +633,5 @@ class RubyManager
     @rubies.map(&:position)
   end
 end
+
+Game.new
