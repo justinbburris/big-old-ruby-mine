@@ -243,7 +243,28 @@ class Player
   end
 
   def position_visible?(mine, position)
-    if position == @homebase.position || visible_tunnel?(mine, position)
+    if visible_tunnel?(mine, position) ||
+        directly_ahead?(position) ||
+      position == @homebase.position
+      true
+    else
+      false
+    end
+  end
+
+  def directly_ahead?(position)
+    tunnel_y = position[0]
+    tunnel_x = position[1]
+    y = @position[0]
+    x = @position[1]
+
+    if(tunnel_x == x && y - 1 == tunnel_y)
+      true
+    elsif(tunnel_x == x && y + 1 == tunnel_y)
+      true
+    elsif(tunnel_y == y && x - 1 == tunnel_x)
+      true
+    elsif(tunnel_y == y && x + 1 == tunnel_x)
       true
     else
       false
@@ -256,26 +277,38 @@ class Player
     y = @position[0]
     x = @position[1]
 
+    tunnels_all_the_way_down = true
     if(tunnel_x == x && tunnel_y < y) #up
-      (y-1).downto(0).each do |rpos|
-        mine[rpos][x].class == Tunnel
+      (y-1).downto(tunnel_y).each do |rpos|
+        if mine[rpos][x].class != Tunnel
+          tunnels_all_the_way_down = false
+        end
       end
-      true
+      tunnels_all_the_way_down
     elsif(tunnel_x == x && tunnel_y > y) #down
-      (y...tunnel_y).each do |rpos|
-        mine[rpos][x].class == Tunnel
+      (y+1...tunnel_y).each do |rpos|
+        if mine[rpos][x].class != Tunnel
+          puts "player-#{y} : NOT A TUNNEL-#{rpos}"
+          tunnels_all_the_way_down = false
+        else
+          puts "player-#{y} : tunnel-#{rpos}"
+        end
       end
-      true
+      tunnels_all_the_way_down
     elsif(tunnel_y == y && tunnel_x < x) #left
-      (x-1).downto(0).each do |cpos|
-        mine[y][cpos].class == Tunnel
+      (x-1).downto(tunnel_x).each do |cpos|
+        if mine[y][cpos].class != Tunnel
+          tunnels_all_the_way_down = false
+        end
       end
-      true
+      tunnels_all_the_way_down
     elsif(tunnel_y == y && tunnel_x > x) #right
-      # (x...tunnel_x).each do |cpos|
-      #   mine[y][cpos].class == Tunnel
-      # end
-      true
+      (x+1...tunnel_x).each do |cpos|
+        if mine[y][cpos].class != Tunnel
+          tunnels_all_the_way_down = false
+        end
+      end
+      tunnels_all_the_way_down
     else
       false
     end
